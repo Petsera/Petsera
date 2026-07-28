@@ -1,18 +1,23 @@
-import Header from "@/components/layout/Header";
-import Button from "@/components/ui/Button";
+import Hero from "@/components/home/Hero";
+import Categories from "@/components/home/Categories";
+import FeaturedProducts from "@/components/home/FeaturedProducts";
+import Features from "@/components/home/Features";
+import CheckoutButton from "@/components/payment/CheckoutButton";
 
 export default function Home() {
   return (
     <>
-      <Header />
+      <Hero />
 
-      <main className="p-6">
-        <h2 className="mb-4 text-2xl font-semibold">
-          Welcome to Petsera
-        </h2>
+      <Categories />
 
-        <Button>Shop Now</Button>
-      </main>
+      <FeaturedProducts />
+
+      <div className="mx-auto my-10 flex max-w-7xl justify-center px-6">
+        <CheckoutButton />
+      </div>
+
+      <Features />
     </>
   );
 }
