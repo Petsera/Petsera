@@ -10,6 +10,7 @@ type Product = {
   price: number;
   image: string | null;
   featured: boolean;
+  category: string;
 };
 
 export default function FeaturedProducts() {
@@ -32,7 +33,7 @@ export default function FeaturedProducts() {
         return;
       }
 
-      setProducts(data || []);
+      setProducts((data as Product[]) || []);
       setLoading(false);
     }
 
@@ -51,7 +52,6 @@ export default function FeaturedProducts() {
 
   return (
     <section className="mx-auto max-w-7xl px-6 py-20">
-
       <h2 className="mb-10 text-center text-3xl font-bold">
         Featured Products
       </h2>
@@ -62,7 +62,6 @@ export default function FeaturedProducts() {
         </p>
       ) : (
         <div className="grid gap-8 md:grid-cols-4">
-
           {products.map((product) => (
             <ProductCard
               key={product.id}
@@ -70,12 +69,11 @@ export default function FeaturedProducts() {
               title={product.name}
               price={product.price.toString()}
               image={product.image}
+              category={product.category}
             />
           ))}
-
         </div>
       )}
-
     </section>
   );
 }

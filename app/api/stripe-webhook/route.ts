@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabase } from "@/lib/supabase";
 
+export const runtime = "nodejs";
+
 const stripe = new Stripe(
   process.env.STRIPE_SECRET_KEY!,
   {
@@ -9,116 +11,93 @@ const stripe = new Stripe(
   }
 );
 
-const webhookSecret =
-  process.env.STRIPE_WEBHOOK_SECRET!;
+export async function POST(req: Request) {
+  const body = await req.text();
 
-
-export async function POST(
-  request: Request
-) {
-  const body = await request.text();
-
-  const signature =
-    request.headers.get(
-      "stripe-signature"
-    );
-
+  const signature = req.headers.get(
+    "stripe-signature"
+  );
 
   if (!signature) {
-    return new NextResponse(
-      "Missing stripe signature",
+    return NextResponse.json(
+      {
+        error: "Missing Stripe signature",
+      },
       {
         status: 400,
       }
     );
   }
-
 
   let event: Stripe.Event;
 
-
   try {
-
-    event =
-      stripe.webhooks.constructEvent(
-        body,
-        signature,
-        webhookSecret
-      );
-
+    event = stripe.webhooks.constructEvent(
+      body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET!
+    );
   } catch (error) {
-
-    console.log(
-      "Webhook error:",
+    console.error(
+      "Webhook signature error:",
       error
     );
 
-    return new NextResponse(
-      "Webhook Error",
+    return NextResponse.json(
+      {
+        error: "Invalid webhook signature",
+      },
       {
         status: 400,
       }
     );
   }
 
+  try {
+    if (
+      event.type ===
+      "checkout.session.completed"
+    ) {
+      const session =
+        event.data.object as Stripe.Checkout.Session;
 
-  if (
-    event.type ===
-    "checkout.session.completed"
-  ) {
+      const orderId =
+        session.metadata?.order_id;
 
-    const session =
-      event.data.object as Stripe.Checkout.Session;
-
-
-    const orderId =
-      session.metadata?.order_id;
-
-
-    if (orderId) {
-
-      const {
-        error
-      } =
-        await supabase
+      if (orderId) {
+        const { error } = await supabase
           .from("orders")
           .update({
-            status: "Paid",
+            status: "paid",
           })
-          .eq(
-            "id",
-            orderId
+          .eq("id", orderId);
+
+        if (error) {
+          console.error(
+            "Order update error:",
+            error.message
           );
-
-
-      if (error) {
-
-        console.log(
-          "Order update error:",
-          error
-        );
-
-      } else {
-
-        console.log(
-          "Order marked as Paid:",
-          orderId
-        );
-
+        }
       }
-
     }
 
+    return NextResponse.json({
+      received: true,
+    });
 
-    console.log(
-      "Payment completed:",
-      session.id
+  } catch (error) {
+    console.error(
+      "Webhook processing error:",
+      error
     );
 
+    return NextResponse.json(
+      {
+        error: "Webhook processing failed",
+      },
+      {
+        status: 500,
+      }
+    );
   }
-
-
-  return NextResponse.json({
-    received: true,
-  });
 }

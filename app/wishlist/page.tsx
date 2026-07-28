@@ -53,7 +53,7 @@ export default function WishlistPage() {
       .eq("user_id", user.id);
 
     if (!error) {
-      setItems((data as WishlistItem[]) || []);
+      setItems((data as unknown as WishlistItem[]) || []);
     }
 
     setLoading(false);
@@ -70,24 +70,19 @@ export default function WishlistPage() {
       return;
     }
 
-    setItems((prev) =>
-      prev.filter((item) => item.id !== id)
-    );
+    setItems((prev) => prev.filter((item) => item.id !== id));
   }
 
   if (loading) {
     return (
       <main className="mx-auto max-w-7xl px-6 py-16">
-        <h1 className="text-3xl font-bold">
-          Loading...
-        </h1>
+        <h1 className="text-3xl font-bold">Loading...</h1>
       </main>
     );
   }
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-16">
-
       <h1 className="mb-10 text-4xl font-bold">
         My Wishlist
       </h1>
@@ -104,40 +99,32 @@ export default function WishlistPage() {
 
           <Link
             href="/shop"
-            className="mt-6 inline-block rounded-lg bg-green-600 px-6 py-3 text-white hover:bg-green-700"
+            className="mt-6 inline-block rounded-lg bg-green-600 px-6 py-3 text-white"
           >
             Browse Products
           </Link>
         </div>
       ) : (
-        <div className="grid gap-8 md:grid-cols-3">
-
+        <div className="space-y-6">
           {items.map((item) => (
-
             <div
               key={item.id}
-              className="overflow-hidden rounded-2xl border bg-white shadow"
+              className="flex items-center gap-6 rounded-xl border bg-white p-6"
             >
+              {item.product.image ? (
+                <img
+                  src={item.product.image}
+                  alt={item.product.name}
+                  className="h-28 w-28 rounded-xl object-cover"
+                />
+              ) : (
+                <div className="flex h-28 w-28 items-center justify-center rounded-xl bg-gray-100 text-5xl">
+                  🐾
+                </div>
+              )}
 
-              <div className="flex h-56 items-center justify-center bg-gray-100">
-
-                {item.product.image ? (
-                  <img
-                    src={item.product.image}
-                    alt={item.product.name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <span className="text-7xl">
-                    🐾
-                  </span>
-                )}
-
-              </div>
-
-              <div className="p-6">
-
-                <h2 className="text-xl font-bold">
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold">
                   {item.product.name}
                 </h2>
 
@@ -145,49 +132,35 @@ export default function WishlistPage() {
                   {item.product.category}
                 </p>
 
-                <p className="mt-3 text-2xl font-bold text-green-600">
+                <p className="mt-3 text-xl font-bold text-green-700">
                   €{item.product.price}
                 </p>
-
-                <div className="mt-6 flex gap-3">
-
-                  <button
-                    onClick={() =>
-                      addToCart({
-                        id: item.product.id,
-                        name: item.product.name,
-                        price: item.product.price,
-                        image:
-                          item.product.image || "",
-                        category:
-                          item.product.category,
-                      })
-                    }
-                    className="flex-1 rounded-lg bg-green-600 py-3 text-white hover:bg-green-700"
-                  >
-                    Add To Cart
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      removeFromWishlist(item.id)
-                    }
-                    className="rounded-lg bg-red-600 px-4 text-white hover:bg-red-700"
-                  >
-                    Remove
-                  </button>
-
-                </div>
-
               </div>
 
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() =>
+                    addToCart({
+                      ...item.product,
+                      image: item.product.image ?? "",
+                    })
+                  }
+                  className="rounded-lg bg-green-600 px-5 py-2 text-white"
+                >
+                  Add to Cart
+                </button>
+
+                <button
+                  onClick={() => removeFromWishlist(item.id)}
+                  className="rounded-lg border px-5 py-2"
+                >
+                  Remove
+                </button>
+              </div>
             </div>
-
           ))}
-
         </div>
       )}
-
     </main>
   );
 }
