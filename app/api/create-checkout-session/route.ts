@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export async function POST(req: Request) {
   try {
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     const {
       data: order,
       error: orderError,
-    } = await supabase
+    } = await supabaseAdmin
       .from("orders")
       .insert({
         user_id: null,
@@ -90,6 +90,7 @@ export async function POST(req: Request) {
     });
 
   } catch (error) {
+
     console.error(
       "Stripe error:",
       error
