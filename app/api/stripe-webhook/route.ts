@@ -4,18 +4,25 @@ import { supabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
-const stripe = new Stripe(
-  process.env.STRIPE_SECRET_KEY!,
-  {
-    apiVersion: "2026-06-24.dahlia",
-  }
-);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2026-06-24.dahlia",
+});
 
 export async function POST(req: Request) {
   const body = await req.text();
 
-  const signature = req.headers.get(
-    "stripe-signature"
+  const signature = req.headers.get("stripe-signature");
+
+  console.log("========== WEBHOOK START ==========");
+  console.log("Webhook called");
+  console.log("Signature exists:", !!signature);
+  console.log(
+    "Webhook secret exists:",
+    !!process.env.STRIPE_WEBHOOK_SECRET
+  );
+  console.log(
+    "Webhook secret:",
+    process.env.STRIPE_WEBHOOK_SECRET
   );
 
   if (!signature) {
@@ -37,9 +44,13 @@ export async function POST(req: Request) {
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!
     );
+
+    console.log("✅ Signature verified");
+    console.log("Event type:", event.type);
+
   } catch (error) {
     console.error(
-      "Webhook signature error:",
+      "❌ Webhook signature error:",
       error
     );
 
@@ -54,15 +65,14 @@ export async function POST(req: Request) {
   }
 
   try {
-    if (
-      event.type ===
-      "checkout.session.completed"
-    ) {
+    if (event.type === "checkout.session.completed") {
       const session =
         event.data.object as Stripe.Checkout.Session;
 
-      const orderId =
-        session.metadata?.order_id;
+      console.log("Checkout Session ID:", session.id);
+      console.log("Metadata:", session.metadata);
+
+      const orderId = session.metadata?.order_id;
 
       if (orderId) {
         const { error } = await supabase
@@ -74,12 +84,21 @@ export async function POST(req: Request) {
 
         if (error) {
           console.error(
-            "Order update error:",
-            error.message
+            "❌ Supabase update error:",
+            error
+          );
+        } else {
+          console.log(
+            "✅ Order updated successfully:",
+            orderId
           );
         }
+      } else {
+        console.log("⚠️ No order_id found in metadata");
       }
     }
+
+    console.log("========== WEBHOOK END ==========");
 
     return NextResponse.json({
       received: true,
@@ -87,7 +106,7 @@ export async function POST(req: Request) {
 
   } catch (error) {
     console.error(
-      "Webhook processing error:",
+      "❌ Webhook processing error:",
       error
     );
 
