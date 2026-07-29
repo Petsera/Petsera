@@ -7,17 +7,11 @@ export async function POST(req: Request) {
     const { items } = await req.json();
 
     const total = items.reduce(
-      (
-        sum: number,
-        item: any
-      ) =>
-        sum +
-        item.price * item.quantity,
+      (sum: number, item: any) =>
+        sum + item.price * item.quantity,
       0
     );
 
-
-    // ساخت سفارش اولیه بدون نیاز به ورود کاربر
     const {
       data: order,
       error: orderError,
@@ -31,13 +25,17 @@ export async function POST(req: Request) {
       .select()
       .single();
 
-
     if (orderError) {
-      console.log(orderError);
+      console.error(
+        "Order creation error:",
+        orderError
+      );
 
       return NextResponse.json(
         {
-          error: "Order creation failed",
+          success: false,
+          error: orderError.message,
+          details: orderError,
         },
         {
           status: 500,
@@ -45,66 +43,61 @@ export async function POST(req: Request) {
       );
     }
 
+    const baseUrl =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      "http://localhost:3000";
 
     const session =
       await stripe.checkout.sessions.create({
-
         payment_method_types: [
           "card",
         ],
 
         mode: "payment",
 
-        line_items:
-          items.map(
-            (item: any) => ({
-              price_data: {
-                currency: "eur",
+        line_items: items.map(
+          (item: any) => ({
+            price_data: {
+              currency: "eur",
 
-                product_data: {
-                  name: item.name,
-                },
-
-                unit_amount:
-                  Math.round(
-                    item.price * 100
-                  ),
+              product_data: {
+                name: item.name,
               },
 
-              quantity:
-                item.quantity,
-            })
-          ),
+              unit_amount: Math.round(
+                item.price * 100
+              ),
+            },
 
+            quantity: item.quantity,
+          })
+        ),
 
         metadata: {
           order_id: order.id,
         },
 
-
         success_url:
-          "http://localhost:3000/order-success",
+          `${baseUrl}/order-success`,
 
         cancel_url:
-          "http://localhost:3000/cart",
+          `${baseUrl}/cart`,
       });
 
-
     return NextResponse.json({
+      success: true,
       url: session.url,
     });
 
-
   } catch (error) {
-
-    console.log(
+    console.error(
       "Stripe error:",
       error
     );
 
-
     return NextResponse.json(
       {
+        success: false,
         error: "Payment error",
       },
       {
