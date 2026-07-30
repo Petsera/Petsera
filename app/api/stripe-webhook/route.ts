@@ -32,6 +32,13 @@ export async function POST(req: Request) {
   let event: Stripe.Event;
 
   try {
+    console.log(
+      "Webhook Secret:",
+      JSON.stringify(
+        process.env.STRIPE_WEBHOOK_SECRET
+      )
+    );
+
     event = stripe.webhooks.constructEvent(
       body,
       signature,
@@ -64,6 +71,11 @@ export async function POST(req: Request) {
       const orderId =
         session.metadata?.order_id;
 
+      console.log(
+        "Order ID:",
+        orderId
+      );
+
       if (orderId) {
         const { error } =
           await supabaseAdmin
@@ -75,8 +87,12 @@ export async function POST(req: Request) {
 
         if (error) {
           console.error(
-            "Order update error:",
-            error.message
+            "Supabase update error:",
+            error
+          );
+        } else {
+          console.log(
+            "Order updated successfully"
           );
         }
       }
