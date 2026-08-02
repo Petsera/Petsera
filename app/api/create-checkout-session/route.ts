@@ -12,6 +12,10 @@ export async function POST(req: Request) {
       0
     );
 
+    // =========================
+    // Create Order
+    // =========================
+
     const {
       data: order,
       error: orderError,
@@ -43,9 +47,54 @@ export async function POST(req: Request) {
       );
     }
 
+
+    // =========================
+    // Create Order Items
+    // =========================
+
+    const orderItems = items.map(
+      (item: any) => ({
+        order_id: order.id,
+        product_id: item.id,
+        quantity: item.quantity,
+        price: item.price,
+      })
+    );
+
+
+    const {
+      error: orderItemsError,
+    } = await supabaseAdmin
+      .from("order_items")
+      .insert(orderItems);
+
+
+    if (orderItemsError) {
+      console.error(
+        "Order items creation error:",
+        orderItemsError
+      );
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: orderItemsError.message,
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+
+    // =========================
+    // Stripe Checkout
+    // =========================
+
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL ||
       "http://localhost:3000";
+
 
     const session =
       await stripe.checkout.sessions.create({
@@ -73,21 +122,27 @@ export async function POST(req: Request) {
           })
         ),
 
+
         metadata: {
           order_id: order.id,
         },
 
+
         success_url:
           `${baseUrl}/order-success`,
+
 
         cancel_url:
           `${baseUrl}/cart`,
       });
 
+
+
     return NextResponse.json({
       success: true,
       url: session.url,
     });
+
 
   } catch (error) {
 
@@ -95,6 +150,7 @@ export async function POST(req: Request) {
       "Stripe error:",
       error
     );
+
 
     return NextResponse.json(
       {
