@@ -7,7 +7,7 @@ export async function POST(req: Request) {
     const { items } = await req.json();
 
     console.log("========== CREATE CHECKOUT ==========");
-    console.log("Incoming Items:");
+    console.log("Received Items:");
     console.log(JSON.stringify(items, null, 2));
 
     const total = items.reduce(
@@ -15,8 +15,6 @@ export async function POST(req: Request) {
         sum + item.price * item.quantity,
       0
     );
-
-    console.log("Total:", total);
 
     // =========================
     // Create Order
@@ -36,16 +34,13 @@ export async function POST(req: Request) {
       .single();
 
     if (orderError) {
-      console.error(
-        "Order creation error:",
-        orderError
-      );
+      console.error("Order creation error:");
+      console.error(orderError);
 
       return NextResponse.json(
         {
           success: false,
           error: orderError.message,
-          details: orderError,
         },
         {
           status: 500,
@@ -53,25 +48,22 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log("Created Order:");
+    console.log("Order Created:");
     console.log(order);
 
     // =========================
     // Create Order Items
     // =========================
 
-    const orderItems = items.map(
-      (item: any) => ({
-        order_id: order.id,
-        product_id: item.id,
-        quantity: item.quantity,
-        price: item.price,
-      })
-    );
+    const orderItems = items.map((item: any) => ({
+      order_id: order.id,
+      product_id: item.id,
+      quantity: item.quantity,
+      price: item.price,
+    }));
 
-    console.log("========== ORDER ITEMS ==========");
+    console.log("Order Items To Insert:");
     console.log(JSON.stringify(orderItems, null, 2));
-    console.log("=================================");
 
     const {
       data: insertedItems,
@@ -82,16 +74,13 @@ export async function POST(req: Request) {
       .select();
 
     if (orderItemsError) {
-      console.error(
-        "Order items creation error:",
-        orderItemsError
-      );
+      console.error("Order items creation error:");
+      console.error(orderItemsError);
 
       return NextResponse.json(
         {
           success: false,
           error: orderItemsError.message,
-          details: orderItemsError,
         },
         {
           status: 500,
@@ -99,7 +88,7 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log("Inserted Items:");
+    console.log("Inserted Order Items:");
     console.log(JSON.stringify(insertedItems, null, 2));
 
     // =========================
@@ -112,43 +101,39 @@ export async function POST(req: Request) {
 
     const session =
       await stripe.checkout.sessions.create({
-        payment_method_types: [
-          "card",
-        ],
+        payment_method_types: ["card"],
 
         mode: "payment",
 
-        line_items: items.map(
-          (item: any) => ({
-            price_data: {
-              currency: "eur",
+        line_items: items.map((item: any) => ({
+          price_data: {
+            currency: "eur",
 
-              product_data: {
-                name: item.name,
-              },
-
-              unit_amount: Math.round(
-                item.price * 100
-              ),
+            product_data: {
+              name: item.name,
             },
 
-            quantity: item.quantity,
-          })
-        ),
+            unit_amount: Math.round(
+              item.price * 100
+            ),
+          },
+
+          quantity: item.quantity,
+        })),
 
         metadata: {
           order_id: order.id,
         },
 
-        success_url:
-          `${baseUrl}/order-success`,
+        success_url: `${baseUrl}/order-success`,
 
-        cancel_url:
-          `${baseUrl}/cart`,
+        cancel_url: `${baseUrl}/cart`,
       });
 
-    console.log("Stripe Session:");
+    console.log("Stripe Session Created:");
     console.log(session.id);
+
+    console.log("====================================");
 
     return NextResponse.json({
       success: true,
@@ -157,10 +142,8 @@ export async function POST(req: Request) {
 
   } catch (error) {
 
-    console.error(
-      "Stripe error:",
-      error
-    );
+    console.error("Stripe error:");
+    console.error(error);
 
     return NextResponse.json(
       {
