@@ -1,46 +1,39 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { stripe } from "@/lib/stripe";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export const runtime = "nodejs";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2026-06-24.dahlia",
-});
-
 export async function POST(req: Request) {
-  // دریافت Raw Body
   const body = await req.text();
 
-  // دریافت امضای Stripe
   const signature = req.headers.get("stripe-signature");
 
   if (!signature) {
     return NextResponse.json(
-      {
-        error: "Missing Stripe signature",
-      },
-      {
-        status: 400,
-      }
+      { error: "Missing stripe-signature header" },
+      { status: 400 }
     );
   }
 
-  // فقط برای دیباگ
-  console.log(
-    "Webhook Secret:",
-    JSON.stringify(process.env.STRIPE_WEBHOOK_SECRET)
-  );
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
 
-  console.log(
-    "Signature:",
-    JSON.stringify(signature)
-  );
+  if (!webhookSecret) {
+    return NextResponse.json(
+      { error: "Missing STRIPE_WEBHOOK_SECRET" },
+      { status: 500 }
+    );
+  }
 
-  console.log(
-    "Body length:",
-    body.length
-  );
+  console.log("========== WEBHOOK DEBUG ==========");
+  console.log("Signature exists:", !!signature);
+  console.log("Body length:", body.length);
+  console.log("Webhook Secret starts with:", webhookSecret.slice(0, 6));
+  console.log("Webhook Secret length:", webhookSecret.length);
+  console.log("Raw Secret:", JSON.stringify(process.env.STRIPE_WEBHOOK_SECRET));
+  console.log("Trimmed Secret:", JSON.stringify(webhookSecret));
+  console.log("===================================");
 
   let event: Stripe.Event;
 
@@ -48,74 +41,56 @@ export async function POST(req: Request) {
     event = stripe.webhooks.constructEvent(
       body,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET!.trim()
+      webhookSecret
     );
-  } catch (err) {
-    console.error("Webhook signature error:", err);
+  } catch (err: any) {
+    console.error("Webhook signature error:", err.message);
 
     return NextResponse.json(
-      {
-        error: "Invalid webhook signature",
-      },
-      {
-        status: 400,
-      }
+      { error: err.message },
+      { status: 400 }
     );
   }
 
   try {
     switch (event.type) {
       case "checkout.session.completed": {
-        const session =
-          event.data.object as Stripe.Checkout.Session;
+        const session = event.data.object as Stripe.Checkout.Session;
 
-        const orderId =
-          session.metadata?.order_id;
+        console.log("Checkout Session ID:", session.id);
+        console.log("Order ID:", session.metadata?.order_id);
 
-        console.log(
-          "Order ID:",
-          orderId
-        );
+        const orderId = session.metadata?.order_id;
 
         if (orderId) {
-          const { error } =
-            await supabaseAdmin
-              .from("orders")
-              .update({
-                status: "paid",
-              })
-              .eq("id", orderId);
+          const { error } = await supabaseAdmin
+            .from("orders")
+            .update({
+              status: "Paid",
+            })
+            .eq("id", orderId);
 
           if (error) {
-            console.error(
-              "Supabase update error:",
-              error
-            );
+            console.error("Supabase Update Error:", error);
           } else {
-            console.log(
-              "Order updated successfully"
-            );
+            console.log("Order updated successfully.");
           }
+        } else {
+          console.log("No order_id found in metadata.");
         }
 
         break;
       }
 
       default:
-        console.log(
-          "Unhandled event:",
-          event.type
-        );
+        console.log(`Unhandled event: ${event.type}`);
     }
 
     return NextResponse.json({
       received: true,
     });
-  } catch (err) {
-    console.error(
-      "Webhook processing error:",
-      err
-    );
+  } catch (error) {
+    console.error("Webhook Processing Error:", error);
 
     return NextResponse.json(
       {
