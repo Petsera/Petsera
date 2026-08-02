@@ -6,11 +6,17 @@ export async function POST(req: Request) {
   try {
     const { items } = await req.json();
 
+    console.log("========== CREATE CHECKOUT ==========");
+    console.log("Incoming Items:");
+    console.log(JSON.stringify(items, null, 2));
+
     const total = items.reduce(
       (sum: number, item: any) =>
         sum + item.price * item.quantity,
       0
     );
+
+    console.log("Total:", total);
 
     // =========================
     // Create Order
@@ -47,6 +53,8 @@ export async function POST(req: Request) {
       );
     }
 
+    console.log("Created Order:");
+    console.log(order);
 
     // =========================
     // Create Order Items
@@ -61,13 +69,17 @@ export async function POST(req: Request) {
       })
     );
 
+    console.log("========== ORDER ITEMS ==========");
+    console.log(JSON.stringify(orderItems, null, 2));
+    console.log("=================================");
 
     const {
+      data: insertedItems,
       error: orderItemsError,
     } = await supabaseAdmin
       .from("order_items")
-      .insert(orderItems);
-
+      .insert(orderItems)
+      .select();
 
     if (orderItemsError) {
       console.error(
@@ -79,6 +91,7 @@ export async function POST(req: Request) {
         {
           success: false,
           error: orderItemsError.message,
+          details: orderItemsError,
         },
         {
           status: 500,
@@ -86,6 +99,8 @@ export async function POST(req: Request) {
       );
     }
 
+    console.log("Inserted Items:");
+    console.log(JSON.stringify(insertedItems, null, 2));
 
     // =========================
     // Stripe Checkout
@@ -94,7 +109,6 @@ export async function POST(req: Request) {
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL ||
       "http://localhost:3000";
-
 
     const session =
       await stripe.checkout.sessions.create({
@@ -122,27 +136,24 @@ export async function POST(req: Request) {
           })
         ),
 
-
         metadata: {
           order_id: order.id,
         },
 
-
         success_url:
           `${baseUrl}/order-success`,
-
 
         cancel_url:
           `${baseUrl}/cart`,
       });
 
-
+    console.log("Stripe Session:");
+    console.log(session.id);
 
     return NextResponse.json({
       success: true,
       url: session.url,
     });
-
 
   } catch (error) {
 
@@ -150,7 +161,6 @@ export async function POST(req: Request) {
       "Stripe error:",
       error
     );
-
 
     return NextResponse.json(
       {
